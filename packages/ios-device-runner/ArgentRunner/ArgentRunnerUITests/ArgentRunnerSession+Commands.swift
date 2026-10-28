@@ -159,6 +159,8 @@ extension ArgentRunnerSession {
             return performLongPress(request, on: app)
         case .drag:
             return performDrag(request, on: app)
+        case .touchPaths:
+            return performTouchPaths(request)
         case .type:
             return performType(request, on: app)
         case .keyboardReturn:
