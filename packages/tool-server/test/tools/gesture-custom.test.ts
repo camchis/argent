@@ -81,8 +81,104 @@ describe("gesture-custom on a physical iOS device", () => {
     expect(result).toEqual({ events: 3 });
   });
 
-  it("rejects the trains XCTest cannot replay", async () => {
-    for (const events of [twoFinger, withWaypoints, moveAtDestination]) {
+  it("plays a two-finger train as two timed paths in absolute points", async () => {
+    const { run, services } = runnerRig();
+    const result = await gestureCustomTool.execute(services, {
+      udid: DEVICE_UDID,
+      events: [
+        { type: "Down", x: 0.4, y: 0.5, x2: 0.6, y2: 0.5 },
+        { type: "Move", x: 0.3, y: 0.5, x2: 0.7, y2: 0.5, delayMs: 100 },
+        { type: "Up", x: 0.2, y: 0.5, x2: 0.8, y2: 0.5, delayMs: 100 },
+      ],
+    });
+    const plays = run.mock.calls.filter(([req]) => req.command === "touchPaths");
+    expect(plays).toHaveLength(1);
+    expect(plays[0][0]).toEqual({
+      command: "touchPaths",
+      appBundleId: "com.example.app",
+      fingers: [
+        {
+          points: [
+            { x: 156, y: 422, tMs: 0 },
+            { x: 117, y: 422, tMs: 100 },
+            { x: 78, y: 422, tMs: 200 },
+          ],
+        },
+        {
+          points: [
+            { x: 234, y: 422, tMs: 0 },
+            { x: 273, y: 422, tMs: 100 },
+            { x: 312, y: 422, tMs: 200 },
+          ],
+        },
+      ],
+    });
+    expect(
+      run.mock.calls.some(([req]) => req.command === "drag" || req.command === "longPress")
+    ).toBe(false);
+    expect(result).toEqual({ events: 3 });
+  });
+
+  it("plays a single finger with waypoints as one path", async () => {
+    const { run, services } = runnerRig();
+    await gestureCustomTool.execute(services, { udid: DEVICE_UDID, events: withWaypoints });
+    const plays = run.mock.calls.filter(([req]) => req.command === "touchPaths");
+    expect(plays).toHaveLength(1);
+    expect(plays[0][0].fingers).toEqual([
+      {
+        points: [
+          { x: 195, y: 590.8, tMs: 0 },
+          { x: 195, y: 422, tMs: 16 },
+          { x: 195, y: 253.2, tMs: 32 },
+        ],
+      },
+    ]);
+  });
+
+  it("subdivides a path train with interpolate, splitting each delay across the frames", async () => {
+    const { run, services } = runnerRig();
+    await gestureCustomTool.execute(services, {
+      udid: DEVICE_UDID,
+      interpolate: 1,
+      events: [
+        { type: "Down", x: 0.5, y: 0.7, x2: 0.6, y2: 0.7 },
+        { type: "Up", x: 0.5, y: 0.3, x2: 0.6, y2: 0.3, delayMs: 200 },
+      ],
+    });
+    const [[request]] = run.mock.calls.filter(([req]) => req.command === "touchPaths");
+    expect(request.fingers[0].points.map((p: { tMs: number }) => p.tMs)).toEqual([0, 100, 200]);
+    expect(request.fingers[1].points).toHaveLength(3);
+  });
+
+  it("lets a second finger join late and lift early", async () => {
+    const { run, services } = runnerRig();
+    await gestureCustomTool.execute(services, {
+      udid: DEVICE_UDID,
+      events: [
+        { type: "Down", x: 0.4, y: 0.5 },
+        { type: "Move", x: 0.4, y: 0.5, x2: 0.6, y2: 0.5, delayMs: 50 },
+        { type: "Move", x: 0.3, y: 0.5, x2: 0.7, y2: 0.5, delayMs: 50 },
+        { type: "Up", x: 0.3, y: 0.5, delayMs: 50 },
+      ],
+    });
+    const [[request]] = run.mock.calls.filter(([req]) => req.command === "touchPaths");
+    expect(request.fingers[0].points.map((p: { tMs: number }) => p.tMs)).toEqual([0, 50, 100, 150]);
+    expect(request.fingers[1].points.map((p: { tMs: number }) => p.tMs)).toEqual([50, 100]);
+  });
+
+  it("rejects a train that is not a Down, Moves, then an Up, before touching the device", async () => {
+    for (const events of [
+      [
+        { type: "Move" as const, x: 0.5, y: 0.5 },
+        { type: "Up" as const, x: 0.5, y: 0.5 },
+      ],
+      [{ type: "Down" as const, x: 0.5, y: 0.5 }],
+      [
+        { type: "Down" as const, x: 0.5, y: 0.5 },
+        { type: "Down" as const, x: 0.6, y: 0.6 },
+        { type: "Up" as const, x: 0.6, y: 0.6 },
+      ],
+    ]) {
       const { run, services } = runnerRig();
       await expect(
         gestureCustomTool.execute(services, { udid: DEVICE_UDID, events })
@@ -91,21 +187,35 @@ describe("gesture-custom on a physical iOS device", () => {
     }
   });
 
-  it("declares the runner service only for a train it can replay", () => {
-    expect(gestureCustomTool.services({ udid: DEVICE_UDID, events: pressHold })).toHaveProperty(
-      "iosDeviceRunner"
-    );
+  it("rejects an event with only one of x2 and y2, after the viewport read but before any touch", async () => {
+    const { run, services } = runnerRig();
+    await expect(
+      gestureCustomTool.execute(services, {
+        udid: DEVICE_UDID,
+        events: [
+          { type: "Down", x: 0.4, y: 0.5, x2: 0.6 },
+          { type: "Up", x: 0.4, y: 0.5, x2: 0.6, y2: 0.5 },
+        ],
+      })
+    ).rejects.toThrow("Event 0 has only one of x2 and y2; give both or neither.");
+    expect(run.mock.calls.some(([req]) => req.command === "touchPaths")).toBe(false);
+  });
+
+  it("declares the runner service for every train it can play, and none it refuses", () => {
+    for (const events of [pressHold, pickupTrain, twoFinger, withWaypoints, moveAtDestination]) {
+      expect(gestureCustomTool.services({ udid: DEVICE_UDID, events })).toHaveProperty(
+        "iosDeviceRunner"
+      );
+    }
     // A train `execute` refuses with authoring guidance must not stand a runner
     // up first: a cold start is an xcodebuild build of up to 15 minutes plus a
     // 120s ready-wait, paid for a request that never reaches the device.
-    expect(gestureCustomTool.services({ udid: DEVICE_UDID, events: pickupTrain })).toHaveProperty(
-      "iosDeviceRunner"
-    );
-    expect(gestureCustomTool.services({ udid: DEVICE_UDID, events: twoFinger })).toEqual({});
-    expect(gestureCustomTool.services({ udid: DEVICE_UDID, events: withWaypoints })).toEqual({});
-    expect(gestureCustomTool.services({ udid: DEVICE_UDID, events: moveAtDestination })).toEqual(
-      {}
-    );
+    expect(
+      gestureCustomTool.services({
+        udid: DEVICE_UDID,
+        events: [{ type: "Move", x: 0.5, y: 0.5 }],
+      })
+    ).toEqual({});
   });
 });
 

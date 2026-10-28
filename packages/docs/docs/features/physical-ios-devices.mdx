@@ -40,7 +40,7 @@ Reading the screen does not change the screen. When the target app is in the bac
 
 ## What works
 
-The agent launches, restarts and reinstalls apps, passes launch arguments to an app, opens URLs, reads the accessibility tree, takes screenshots, compares screenshots for visual regressions, taps and double-taps, swipes, long-presses and drags, presses the home and volume buttons, and the action button on models that have one, types text, waits for elements, and records and replays [e2e tests](/docs/features/e2e). An e2e test replay never picks the phone automatically, even when no simulator is booted. Name the device in the instruction.
+The agent launches, restarts and reinstalls apps, passes launch arguments to an app, opens URLs, reads the accessibility tree, takes screenshots, compares screenshots for visual regressions, taps and double-taps, swipes, long-presses and drags, pinches, rotations and custom multi-finger paths, presses the home and volume buttons, and the action button on models that have one, types text, waits for elements, and records and replays [e2e tests](/docs/features/e2e). An e2e test replay never picks the phone automatically, even when no simulator is booted. Name the device in the instruction.
 
 A web URL opens in Safari, not in the app that owns the link. The agent names the app to hand it the URL. For any other URL scheme, the agent names the app that receives the URL.
 
@@ -62,7 +62,8 @@ Each tool that does not exist on hardware fails with a `not supported on ios dev
 
 - Argent drives iPhones only. Argent does not show iPads in the device list.
 - Argent drives the device over a USB cable only. Argent does not use Wi-Fi.
-- Two-finger gestures such as pinch and rotate are not possible. The agent uses the zoom controls of the app instead.
+- Multi-finger gestures need the phone held in portrait. They play through XCTest's own event synthesizer, which Apple does not document: a future Xcode that removes it makes these gestures answer `not supported`, and single-finger gestures keep working.
+- A multi-finger gesture plays at most five fingers and 30 seconds.
 - The device does not rotate or shake on command. Rotate or shake the phone by hand, or test motion on a simulator.
 - The agent presses the home, volume and action buttons only. The power button and the app switcher are not available.
 - The agent types text, Enter and Backspace only. Other named keys are not available.
