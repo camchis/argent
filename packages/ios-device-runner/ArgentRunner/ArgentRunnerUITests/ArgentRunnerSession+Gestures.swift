@@ -135,7 +135,9 @@ extension ArgentRunnerSession {
     /// take, and times are measured from the start of the gesture. A finger
     /// whose first waypoint is later than 0 touches down late, which is how a
     /// second finger joins a gesture already under way.
-    func performTouchPaths(_ request: CommandRequest) -> Envelope {
+    func performTouchPaths(_ request: CommandRequest, on app: XCUIApplication)
+        -> Envelope
+    {
         guard let fingers = request.fingers,
             (1...Self.maxTouchFingers).contains(fingers.count)
         else {
@@ -169,26 +171,36 @@ extension ArgentRunnerSession {
             }
         }
 
-        // The synthesizer reads points in the orientation it is told about.
-        // Only portrait has been checked on hardware, and a touch that lands
-        // somewhere else without an error is worse than a refusal.
-        switch XCUIDevice.shared.orientation {
-        case .landscapeLeft, .landscapeRight, .portraitUpsideDown:
-            return .failure(
-                .unsupportedOperation,
-                "touchPaths has only been verified with the device held in portrait",
-                hint: "Hold the phone upright and retry."
-            )
-        default:
-            break
-        }
-
         if let reason = ArgentTouchSynthesizer.unavailabilityReason() {
             return .failure(
                 .unsupportedOperation,
                 "multi-finger touch is unavailable here: \(reason)",
                 hint:
                     "Use tap, swipe or drag for a single finger, or drive the app's own zoom controls."
+            )
+        }
+
+        // The orientation the app draws in, not the way the phone is held: a
+        // portrait-only app on a phone turned sideways is still portrait. Wire
+        // points are in the app's space, which is the panel's own only in
+        // portrait. Other orientations have not been checked on hardware, and
+        // a touch that lands somewhere else without an error is worse than a
+        // refusal.
+        switch ArgentTouchSynthesizer.interfaceOrientation(ofApplication: app) {
+        case .portrait:
+            break
+        case .unknown:
+            return .failure(
+                .unsupportedOperation,
+                "touchPaths could not read the app's interface orientation",
+                hint:
+                    "Use tap, swipe or drag for a single finger, or drive the app's own zoom controls."
+            )
+        default:
+            return .failure(
+                .unsupportedOperation,
+                "touchPaths has only been verified with the app drawn in portrait",
+                hint: "Turn the phone upright so the app draws in portrait, then retry."
             )
         }
 

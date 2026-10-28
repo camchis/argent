@@ -1,5 +1,8 @@
 #import "ArgentTouchSynthesizer.h"
 
+#import <XCTest/XCTest.h>
+#import <objc/message.h>
+
 /// The selectors used on XCTest's private classes, declared as protocols so the
 /// compiler can check the calls without a class symbol to link against.
 @protocol ArgentPointerEventPath <NSObject>
@@ -9,6 +12,9 @@
 @end
 
 @protocol ArgentSynthesizedEventRecord <NSObject>
+- (instancetype)initWithName:(NSString *)name
+                   displayID:(NSUInteger)displayID
+        interfaceOrientation:(UIInterfaceOrientation)orientation;
 - (instancetype)initWithName:(NSString *)name
         interfaceOrientation:(UIInterfaceOrientation)orientation;
 - (void)addPointerEventPath:(id<ArgentPointerEventPath>)path;
@@ -41,8 +47,14 @@ static const NSTimeInterval kLiftDelay = 0.01;
     }
   }
 
+  // Either record initializer will do; synthesizeFingers picks the newer one.
+  if (![recordClass instancesRespondToSelector:@selector(initWithName:displayID:interfaceOrientation:)] &&
+      ![recordClass instancesRespondToSelector:@selector(initWithName:interfaceOrientation:)]) {
+    return @"XCSynthesizedEventRecord has neither initWithName:displayID:interfaceOrientation: "
+           @"nor initWithName:interfaceOrientation:";
+  }
+
   SEL recordSelectors[] = {
-      @selector(initWithName:interfaceOrientation:),
       @selector(addPointerEventPath:),
       @selector(synthesizeWithError:),
   };
@@ -56,6 +68,44 @@ static const NSTimeInterval kLiftDelay = 0.01;
   return nil;
 }
 
++ (UIInterfaceOrientation)interfaceOrientationOfApplication:(id)application {
+  SEL selector = NSSelectorFromString(@"interfaceOrientation");
+  if (![application respondsToSelector:selector]) {
+    return UIInterfaceOrientationUnknown;
+  }
+  return ((UIInterfaceOrientation(*)(id, SEL))objc_msgSend)(application, selector);
+}
+
+/// The main screen's display id, which the display-aware record initializer
+/// routes touches by. nil when XCUIScreen does not expose one.
++ (NSNumber *_Nullable)mainDisplayID {
+  XCUIScreen *screen = XCUIScreen.mainScreen;
+  if (![screen respondsToSelector:NSSelectorFromString(@"displayID")]) {
+    return nil;
+  }
+  id value = [screen valueForKey:@"displayID"];
+  return [value isKindOfClass:NSNumber.class] ? value : nil;
+}
+
+/// A new event record. Prefers the display-aware initializer, which newer
+/// XCTest uses for its own touches, and falls back to the older one when this
+/// XCTest or the screen cannot supply a display id.
++ (id<ArgentSynthesizedEventRecord>)recordWithInterfaceOrientation:
+    (UIInterfaceOrientation)orientation {
+  Class recordClass = NSClassFromString(@"XCSynthesizedEventRecord");
+  NSString *name = @"argent-touch-paths";
+  NSNumber *displayID = [self mainDisplayID];
+
+  if (displayID != nil &&
+      [recordClass instancesRespondToSelector:@selector(initWithName:displayID:interfaceOrientation:)]) {
+    return [[recordClass alloc] initWithName:name
+                                   displayID:displayID.unsignedIntegerValue
+                        interfaceOrientation:orientation];
+  }
+
+  return [[recordClass alloc] initWithName:name interfaceOrientation:orientation];
+}
+
 + (NSString *_Nullable)synthesizeFingers:
             (NSArray<NSArray<NSArray<NSNumber *> *> *> *)fingers
                       interfaceOrientation:(UIInterfaceOrientation)orientation {
@@ -65,10 +115,7 @@ static const NSTimeInterval kLiftDelay = 0.01;
   }
 
   @try {
-    id<ArgentSynthesizedEventRecord> record =
-        [[NSClassFromString(@"XCSynthesizedEventRecord") alloc]
-                 initWithName:@"argent-touch-paths"
-         interfaceOrientation:orientation];
+    id<ArgentSynthesizedEventRecord> record = [self recordWithInterfaceOrientation:orientation];
 
     for (NSArray<NSArray<NSNumber *> *> *waypoints in fingers) {
       NSArray<NSNumber *> *first = waypoints.firstObject;

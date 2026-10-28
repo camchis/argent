@@ -110,7 +110,7 @@ endAngle > startAngle = clockwise rotation. Typical values: radius 0.15, startAn
 Auto-generates interpolated frames at ~60fps.
 Unlike gesture-pinch which moves fingers linearly to zoom, this orbits fingers in an arc to change orientation.
 Use when you need to rotate a map, image picker, or any rotateable UI element. Returns { rotated: true, timestampMs }. Fails if the simulator-server / emulator backend is not reachable for the given device.
-Physical iPhones play both fingers through the runner as one event stream; hold the phone in portrait.
+Physical iPhones play both fingers through the runner as one event stream, with the app drawn in portrait.
 Size the orbit with radius, or with radiusX and radiusY together (the pair overrides radius); one half of the pair alone, or none of the three, is rejected.`,
   zodSchema,
   capability,

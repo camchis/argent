@@ -103,11 +103,15 @@ tMs}`: an absolute point in the app's space and the time since the gesture
   order and lifts 10 ms after its last, so a first point later than 0 is a
   finger joining late. Times must be finite, within 0 to 30 000 ms, and must
   not decrease along a path, or the reply is `INVALID_REQUEST`. The synthesizer
-  classes are private and are resolved by name at runtime: when this Xcode no
-  longer has one, or the device is not held in portrait (the only orientation
-  checked on hardware), the reply is `UNSUPPORTED_OPERATION` naming why, and
-  every other command keeps working. It has the same 75 s execution budget
-  as the other gestures.
+  classes are private and are resolved by name at runtime. The record is built
+  with `initWithName:displayID:interfaceOrientation:` when XCTest and the main
+  screen offer a display id, and with `initWithName:interfaceOrientation:`
+  otherwise. When this Xcode has neither, or a path class or selector is
+  missing, the reply is `UNSUPPORTED_OPERATION` naming why, and every other
+  command keeps working. The same code answers when the app is not drawn in
+  portrait, the only orientation checked on hardware; the check reads the
+  app's interface orientation, so a portrait-only app on a phone held sideways
+  is accepted. It has the same 75 s execution budget as the other gestures.
 - `type` → `{message}`: types into the current first responder. The runner
   probes keyboard focus first and answers `TEXT_INPUT_NOT_FOCUSED` when
   nothing has it. The probe is what makes that code real on hardware: there,
