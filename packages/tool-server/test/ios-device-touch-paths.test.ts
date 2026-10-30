@@ -265,7 +265,7 @@ describe("gesture-pinch and gesture-rotate on a physical iPhone", () => {
 
     const plays = run.mock.calls.filter(([req]) => req.command === "touchPaths");
     expect(plays).toHaveLength(1);
-    expect(roundPoints(plays[0][0].fingers)).toEqual([
+    expect(roundPoints(plays[0][0].fingers as RunnerTouchFinger[])).toEqual([
       {
         points: [
           { x: 175.5, y: 422, tMs: 0 },

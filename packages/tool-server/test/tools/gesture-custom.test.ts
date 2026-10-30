@@ -4,6 +4,7 @@ import { Registry } from "@argent/registry";
 import { gestureCustomTool } from "../../src/tools/gesture-custom";
 import { InvalidToolInputError } from "../../src/utils/capability";
 import { setCurrentIosDeviceApp } from "../../src/utils/ios-device/app-session";
+import type { RunnerTouchFinger } from "../../src/utils/ios-device/runner-commands";
 
 // Physical-iOS UDID shape (8 hex, dash, 16 hex) routes to the runner branch.
 const DEVICE_UDID = "00008110-000978540290401E";
@@ -38,7 +39,8 @@ const moveAtDestination = [
 
 function runnerRig() {
   setCurrentIosDeviceApp(DEVICE_UDID, "com.example.app");
-  const run = vi.fn(async (req: Record<string, unknown>) =>
+  // `fingers` is set on the touchPaths requests the assertions filter for.
+  const run = vi.fn(async (req: Record<string, unknown> & { fingers: RunnerTouchFinger[] }) =>
     req.command === "viewport" ? { x: 0, y: 0, width: 390, height: 844 } : {}
   );
   return { run, services: { iosDeviceRunner: { udid: DEVICE_UDID, run } } as never };

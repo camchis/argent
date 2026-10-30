@@ -62,8 +62,9 @@ Each tool that does not exist on hardware fails with a `not supported on ios dev
 
 - Argent drives iPhones only. Argent does not show iPads in the device list.
 - Argent drives the device over a USB cable only. Argent does not use Wi-Fi.
-- Multi-finger gestures need the app drawn in portrait. A portrait-only app on a phone held sideways still counts. They play through XCTest's own event synthesizer, which Apple does not document: a future Xcode that removes it makes these gestures answer `not supported`, and single-finger gestures keep working.
-- A multi-finger gesture plays at most five fingers and 30 seconds.
+- Pinches, rotations and custom gestures with a second finger or several moves need the app drawn in portrait. A portrait-only app on a phone held sideways still counts.
+- These gestures use a part of XCTest that Apple does not document. A future Xcode can remove this part. Argent then reports these gestures as unavailable. Taps, swipes, long presses and drags keep working.
+- One of these gestures uses at most two fingers and lasts at most 30 seconds.
 - The device does not rotate or shake on command. Rotate or shake the phone by hand, or test motion on a simulator.
 - The agent presses the home, volume and action buttons only. The power button and the app switcher are not available.
 - The agent types text, Enter and Backspace only. Other named keys are not available.

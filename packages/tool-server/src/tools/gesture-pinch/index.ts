@@ -114,7 +114,7 @@ export const gesturePinchTool: ToolDefinition<Params, Result> = {
 startDistance > endDistance = pinch in (zoom out). startDistance < endDistance = pinch out (zoom in).
 Typical values: startDistance 0.2, endDistance 0.6 for a zoom-in pinch at screen center.
 Auto-generates interpolated frames at ~60fps<flag:harmonyos> on iOS and Android; HarmonyOS takes both fingers' endpoints in one call and interpolates them on-device</flag:harmonyos>. The angle parameter controls the axis (0 = horizontal, 90 = vertical). Optional endCenterX/endCenterY drift the centroid linearly over the gesture (omitted = fixed center).
-Use when you need to zoom in or out on a map, image, or zoomable view. Physical iPhones play both fingers through the runner as one event stream, with the app drawn in portrait. Returns { pinched: true, timestampMs }. Fails if the simulator-server / emulator backend<flag:harmonyos>, or \`hdc\` on HarmonyOS,</flag:harmonyos> is not reachable for the given device.`,
+Use when you need to zoom in or out on a map, image, or zoomable view. Physical iPhones play both fingers through the runner as one event stream. Returns { pinched: true, timestampMs }. On physical iOS, reactivated: true = app was re-fronted; re-describe. Fails if the simulator-server / emulator backend<flag:harmonyos>, or \`hdc\` on HarmonyOS,</flag:harmonyos> is not reachable for the given device, or on a physical iPhone when the app is not drawn in portrait.`,
   zodSchema,
   capability,
   services: (params): Record<string, ServiceRef> => {
